@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include <stddef.h>
-#include <limine.h>
+#include "limine.h"
 
 // The Limine requests can be placed anywhere, but it is important that
 // the compiler does not optimise them away, so, usually, they should
@@ -79,6 +79,42 @@ static void hcf(void) {
     }
 }
 
+#include "flanterm/flanterm.h"
+#include "flanterm/backends/fb.h"
+#include "printf/printf.h"
+
+#define blk "\e[30m"
+#define red "\e[31m"
+#define grn "\e[32m"
+#define ylw "\e[33m"
+#define blu "\e[34m"
+#define pur "\e[35m"
+#define cyn "\e[36m"
+#define wht "\e[37m"
+#define clr "\e[00m"
+#define bld "\e[01m"
+#define err_ "[ERROR] "
+#define err clr bld red err_ clr
+#define inf_ "[INFO] "
+#define inf clr bld blu inf_ clr
+
+#define print_term(term, fs ...) \
+    flanterm_write(gft_ctx, term, sizeof(term)); \
+    printf_(fs);
+
+#define print_error(fs ...) \
+    print_term(err, fs)
+
+#define print_info(fs ...) \
+    print_term(inf, fs);
+
+struct flanterm_context *gft_ctx;
+
+void putchar_(char c) {
+    char str[] = {c, '\0'};
+    flanterm_write(gft_ctx, str, sizeof(str));
+}
+
 // The following will be our kernel's entry point.
 // If renaming _start() to something else, make sure to change the
 // linker script accordingly.
@@ -97,6 +133,17 @@ void _start(void) {
         volatile uint32_t *fb_ptr = framebuffer->address;
         fb_ptr[i * (framebuffer->pitch / 4) + i] = 0xffffff;
     }
+
+    gft_ctx = flanterm_fb_simple_init(
+        framebuffer->address, framebuffer->width, framebuffer->height, framebuffer->pitch
+    );
+
+    print_term(bld grn, "%s", "Success! Welcome to the kernel...\n");
+
+    print_info("framebuffer count: ");
+    printf_("%lu\n", framebuffer_request.response->framebuffer_count);
+
+    print_error("%s", "Missing Kernel Implementation!!!");
 
     // We're done, just hang...
     hcf();
